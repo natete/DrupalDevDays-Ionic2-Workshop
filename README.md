@@ -1,16 +1,21 @@
-# Beyond the web: Mobile apps using Drupal & Ionic 2
+# Step00 Setting up Drupal
 
-## How to use this repository
- 
-This repository is a tutorial about how to create an Ionic 2 application based on a Drupal 8 backend.
-It is structured in branches so you can start from the Step 00 and follow along the README instructions. If you get stuck in one step you can ask any of the speakers or navigate to the next branch where all the code from the previous branch is implemented.
+Before we start with the Ionic project we need a Drupal instance with the API we are going to consume.
+We will start cloning [the DrupalDevDays repo](https://github.com/AsociacionDrupalES/devdaysseville) and following the installation instructions.
+Once it's installed you can use [the provided db dump](./dump.sql) to add a program to your DrupalDevDays instance.
 
-The steps you will follow are:
+```bash
+../vendor/bin/drush sql-cli < path-to-your-downloaded-file/dump.sql
+```
 
-* [**Step 00 Setting up Drupal**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step00-Setting_up_Drupal)
-* [**Step 01 Installing Ionic**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step01-Installing_Ionic)
-* [**Step 02 Preparing the Ionic application**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step02-Preparing_the_Ionic_application)
-* [**Step 03 Populating the Program Page**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step03-Populating_the_Program_Page)
-* [**Step 04 Populating the Session Page**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step04-Populating_the_Session_Page)
-* [**Step 05 Adding Native features**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step05-Adding_Native_features)
-* [**Step 06 What to do next**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step06-What_to_do_next)
+Finally get your ip to use it in your Ionic application. If everything went fine you should be able now to access your API.
+Type into your browser's address bar: 
+```
+http://your-ip/devdaysseville/api/program/55
+```
+
+And you should get something like this:
+
+![api_example](./images/api_example.png)
+
+Jump to the next branch [**Step 01 Installing Ionic**](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step01-Installing_Ionic) to keep coding!
