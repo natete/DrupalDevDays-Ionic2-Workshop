@@ -12,7 +12,7 @@
 
     <ion-item-divider *virtualHeader="let startTime" color="light">{{startTime}}</ion-item-divider>
 
-    <ion-item *virtualItem="let session">
+    <ion-item *virtualItem="let session" (click)="goToSession(session)">
       <ion-avatar item-left>
         <img [src]="getImage(session)">
       </ion-avatar>

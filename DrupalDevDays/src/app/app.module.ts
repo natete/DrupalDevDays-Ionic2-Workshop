@@ -4,6 +4,8 @@ import { MyApp } from './app.component';
 import { ProgramPage } from '../pages/program/program';
 import { SessionPage } from '../pages/session/session';
 import { ProgramService } from '../providers/program.service';
+import { SessionService } from '../providers/session.service';
+import { SpeakerService } from '../providers/speaker.service';
 
 @NgModule({
   declarations: [
@@ -22,6 +24,8 @@ import { ProgramService } from '../providers/program.service';
   ],
   providers: [
     ProgramService,
+    SessionService,
+    SpeakerService,
     { provide: ErrorHandler, useClass: IonicErrorHandler }
   ]
 })

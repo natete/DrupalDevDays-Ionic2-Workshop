@@ -3,6 +3,7 @@ import { NavController, NavParams } from 'ionic-angular';
 import * as moment from 'moment';
 import { ProgramService } from '../../providers/program.service';
 import { Session } from '../../shared/session';
+import { SessionPage } from '../session/session';
 import Moment = moment.Moment;
 
 @Component({
@@ -35,15 +36,26 @@ export class ProgramPage {
 
   getImage(session: Session): string {
     if (session.type) {
-      const imageName: string = this.getImageNameFromTarget(session.track);
+      const imageName: string = this.getImageNameFromTrack(session.track);
       return `assets/images/${imageName}.svg`
     } else {
       return 'assets/images/poison.svg';
     }
   }
 
-  private getImageNameFromTarget(target: string): string {
-    const result = target || 'other';
+  goToSession(session: Session): void {
+    // We don't want to see the details of the breaks.
+    if (session.type) {
+      this.navCtrl.push(SessionPage, {
+        sessionId: session.id,
+        date: this.navParams.data,
+        startTime: session.startTime
+      });
+    }
+  }
+
+  private getImageNameFromTrack(track: string): string {
+    const result = track || 'other';
     return result.toLowerCase()
                  .replace(' ', '-');
   }

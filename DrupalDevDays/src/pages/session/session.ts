@@ -1,37 +1,32 @@
 import { Component } from '@angular/core';
 import { NavController, NavParams } from 'ionic-angular';
+import * as moment from 'moment';
+import { SessionService } from '../../providers/session.service';
+import { SessionDetails } from '../../shared/session-details';
+import Moment = moment.Moment;
 
 @Component({
   selector: 'page-session',
   templateUrl: 'session.html'
 })
 export class SessionPage {
-  selectedItem: any;
-  icons: string[];
-  items: Array<{ title: string, note: string, icon: string }>;
 
-  constructor(public navCtrl: NavController, public navParams: NavParams) {
-    // If we navigated to this page, we will have an item available as a nav param
-    this.selectedItem = navParams.get('item');
+  title: string;
+  session: SessionDetails = new SessionDetails();
 
-    // Let's populate this page with some filler content for funzies
-    this.icons = ['flask', 'wifi', 'beer', 'football', 'basketball', 'paper-plane',
-      'american-football', 'boat', 'bluetooth', 'build'];
+  constructor(private navCtrl: NavController,
+              private navParams: NavParams,
+              private sessionService: SessionService) {
+    const date = (this.navParams.get('date') as Moment).format('DD dddd');
 
-    this.items = [];
-    for (let i = 1; i < 11; i++) {
-      this.items.push({
-        title: 'Item ' + i,
-        note: 'This is item #' + i,
-        icon: this.icons[Math.floor(Math.random() * this.icons.length)]
-      });
-    }
+    this.title = `${date} - ${this.navParams.get('startTime')}`;
   }
 
-  itemTapped(event, item) {
-    // That's right, we're pushing to ourselves!
-    this.navCtrl.push(SessionPage, {
-      item: item
-    });
+  ionViewDidLoad() {
+    const sessionId = this.navParams.get('sessionId');
+
+    this.sessionService
+        .getSession(sessionId)
+        .subscribe(session => this.session = session);
   }
 }
