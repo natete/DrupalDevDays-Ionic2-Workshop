@@ -15,8 +15,8 @@ export class ProgramService {
     '2017-03-21': 55,
     '2017-03-22': 56,
     '2017-03-23': 57,
-    '2017-03-24': 58,
-    '2017-03-25': 59,
+    '2017-03-24': 258,
+    '2017-03-25': 259,
   };
 
   constructor(private http: Http) {
@@ -29,6 +29,14 @@ export class ProgramService {
                .get(`${this.drupalUrl}/${programId}`)
                .map(res => res.json())
                .map(rawSessions => rawSessions.map(rawSession => new Session(rawSession)))
-               .map(sessions => sessions.sort((s1, s2) => s1.startTime.localeCompare(s2.startTime)));
+               .map(sessions => sessions.sort((s1: Session, s2: Session) => this.compareTimes(s1.startTime, s2.startTime)));
+  }
+
+  private compareTimes(time1: string, time2: string): number {
+    return this.padTimeWithZeros(time1).localeCompare(this.padTimeWithZeros(time2));
+  }
+
+  private padTimeWithZeros(str: string): string {
+    return ('0' + str).substr(-5);
   }
 }

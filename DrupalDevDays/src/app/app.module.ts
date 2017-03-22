@@ -6,6 +6,8 @@ import { SessionPage } from '../pages/session/session';
 import { ProgramService } from '../providers/program.service';
 import { SessionService } from '../providers/session.service';
 import { SpeakerService } from '../providers/speaker.service';
+import { CalendarService } from '../providers/calendar.service';
+import { NotificationService } from '../providers/notification.service';
 
 @NgModule({
   declarations: [
@@ -23,6 +25,8 @@ import { SpeakerService } from '../providers/speaker.service';
     SessionPage
   ],
   providers: [
+    CalendarService,
+    NotificationService,
     ProgramService,
     SessionService,
     SpeakerService,

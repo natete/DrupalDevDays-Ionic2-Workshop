@@ -3,6 +3,7 @@ import { Nav, Platform } from 'ionic-angular';
 import { StatusBar, Splashscreen } from 'ionic-native';
 import * as moment from 'moment';
 import { ProgramPage } from '../pages/program/program';
+import { NotificationService } from '../providers/notification.service';
 import Moment = moment.Moment;
 
 @Component({
@@ -19,7 +20,8 @@ export class MyApp {
     moment('2017-03-25')
   ];
 
-  constructor(public platform: Platform) {
+  constructor(public platform: Platform,
+              private notificationService: NotificationService) {
     this.initializeApp();
   }
 
@@ -30,6 +32,8 @@ export class MyApp {
           // Here you can do any higher level native things you might need.
           StatusBar.styleDefault();
           Splashscreen.hide();
+
+          this.notificationService.init();
 
           this.goToFirstDay();
         });
