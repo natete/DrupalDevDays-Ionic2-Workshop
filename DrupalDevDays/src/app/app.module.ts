@@ -3,6 +3,7 @@ import { IonicApp, IonicModule, IonicErrorHandler } from 'ionic-angular';
 import { MyApp } from './app.component';
 import { ProgramPage } from '../pages/program/program';
 import { SessionPage } from '../pages/session/session';
+import { ProgramService } from '../providers/program.service';
 
 @NgModule({
   declarations: [
@@ -19,7 +20,10 @@ import { SessionPage } from '../pages/session/session';
     ProgramPage,
     SessionPage
   ],
-  providers: [{ provide: ErrorHandler, useClass: IonicErrorHandler }]
+  providers: [
+    ProgramService,
+    { provide: ErrorHandler, useClass: IonicErrorHandler }
+  ]
 })
 export class AppModule {
 }

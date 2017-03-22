@@ -1,314 +1,438 @@
-# Step 03 Populating the Program Page
+# Step 04 Populating the Session Page
 
-[**1. Getting data from Drupal**](#1-getting-data-from-drupal)
+[**1. Enable navigation to the Session Page**](#1-enable-navigation-to-the-session-page)
 
-[**2. Transforming the response**](#2-transforming-the-response)
+[**2. Getting the session details from Drupal**](#2-getting-the-session-details-from-drupal)
 
-[**3. Representing data**](#3-representing-data)
+[**3. Displaying session details**](#3-displaying-session-details)
 
-[**4. Making things pretty**](#4-making-things-pretty)
+[**4. Adding speakers**](#4-adding-speakers)
 
-## 1. Getting data from Drupal
+## 1. Enable navigation to the Session Page
 
-It's time to give some content to our **Program Page**. But to do it we must get data from somewhere and here is where 
-the RESTful api we prepared on Drupal comes into play.
+First things first. We need a way to navigate to the Session page. In this case we don't want to set the root of the 
+application, instead we want to push a new page to the navigation stack.
 
-In order to keep separation of concerns Ionic uses classes called **Providers**. These classes are normal plain classes 
-decorated with the ```@Injectable()``` decorator to allow dependency injection. These classes are singletons, so we can 
-consider them as a way to share information across the application and as a way to store the state of the application. 
-
-We will use the **Ionic CLI** again to generate the provider we need by typing in the project folder:
-```bash
-ionic g provider program
-```
-
-This will create a _program.ts_ file in a providers folder. I consider good practice to rename this file to **program.service.ts** 
-so it's easier to know the content of the file and to differentiate it from the _program.ts_ page file. We should also 
-rename the class to **ProgramService**.
-
-Prior to use our service we must declare it in our module, so we will go to our _app.module.ts_ and add it to the providers 
-array with its corresponding import statement.
-
-This class the Ionic CLI created for us has already injected the Http class (we should make it private). This is the class we 
-use to perform requests. 
-
-We will start by declaring a couple of constants that we will need: the **base url** for our requests and an object to relate dates with **Drupal nodes**.
-
+So we will bind the _click_ event of the _ion-item_ element to a **goToSession** method in our ProgramPage class. This 
+method will receive the session itself, check if it is a break or an actual session and push the new view to the stack.
 ```typescript
-private readonly drupalUrl = 'https://your-ip/devdaysseville/api/program';
-
-private readonly dates = {
-  '2017-03-21': 55,
-  '2017-03-22': 56,
-  '2017-03-23': 57,
-  '2017-03-24': 58,
-  '2017-03-25': 59,
-};
-```
-
-No we create a method to get a program by its date. This method receives a Moment object representing the date and returns an Observable, which is:
-> A representation of any set of values over any amount of time. This the most basic building block of RxJS.
-
-It's, then, a construct of [RxJs](http://reactivex.io/rxjs/) the javascript implementation for **Reactive Programming**. 
-Our method, for now, just makes the requests and gets the data from the response:
-
-```typescript
-getProgram(date: Moment): Observable<any[]> {
-  const programId = this.dates[date.format('YYYY-MM-D')];
-
-  return this.http
-             .get(`${this.drupalUrl}/${programId}`)
-             .map(res => res.json());
+goToSession(session: Session): void {
+  // We don't want to see the details of the breaks.
+  if (session.type) {
+    this.navCtrl.push(
+      SessionPage, 
+      {
+        sessionId: session.id,
+        date: this.navParams.data,
+        startTime: session.startTime,
+        endTime: session.endTime 
+      }
+    );
+  }
 }
 ```
-Don't forget to import Observable and Moment in the program.service.ts
-```
-import { Observable } from 'rxjs/Observable';
-import * as moment from 'moment';
-import Moment = moment.Moment;
+
+We pass to the next view the id of the session so we can fetch the session details and the date of the session to display it in the title of the next view.
+Don't forget to add the binding to the _ion-item_ element 
+```html
+(click)="goToSession(session)
 ```
 
-We will improve this method later, now we are gonna give it a try.
-We will go back to our _program.ts_ file and add a new method called **ionViewDidLoad**. This method is a lifecycle hook 
-and it will be called by Ionic once the page has been loaded. It's then the moment to request the asynchronous content of the page.
+Now we can navigate to our **Session Page**. Time to remove the example content the Ionic CLI provided to this page. 
+Remove the content of the _ion-content_ element in the _session.html_ file and empty the **SessionPage** so we just have a an empty constructor.
+```typescript
+export class SessionPage {
 
-In this method we will call our service method and then subscribe to the result and print it to the console to check if it's working:
+  constructor(private navCtrl: NavController, private navParams: NavParams) { }
+
+}
+```
+
+## 2. Getting the session details from Drupal
+
+As we did with the _ProgramPage_ we need to retrieve the details of the session from Drupal. So we will create a new 
+provider class to handle it and rename it to follow the same conventions.
+Remember to declare the provider in your **AppModule** (_app.module.ts_ file). You can refer to the previous branch 
+where we declared the _ProgramService_ if you have any doubt.
+Once we have everything set up we declare the **drupalUrl** constant 
+```typescript
+private readonly drupalUrl = 'http://your-ip/devdaysseville/api/sessions';
+```
+Next we define the basic method to retrieve the session details:
+```typescript
+getSession(sessionId: string): Observable<any> {
+  return this.http
+             .get(`${this.drupalUrl}/${sessionId}`)
+             .map(res => res.json()[0]);
+}
+```
+
+Let's consume it to see what we get. In our **SessionPage** class (_pages/session/session.ts_ file) we will set again the 
+lifecycle hook method **ionViewDidLoad** and we will perform the call to the service in this point.
 ```typescript
 ionViewDidLoad() {
-  this.programService.getProgram(this.navParams.data as Moment)
-      .subscribe(program => console.log(program));
+  const sessionId = this.navParams.get('sessionId');
+
+  this.sessionService
+      .getSession(sessionId)
+      .subscribe(session => console.log(session));
 }
 ```
 
-Maybe your IDE is warning you that _this.programService_ was not defined. You need to import _ProgramService_ and inject it in our class like this:
+Don't forget to inject the sessionService using the dependency injection (you can refer to the previous step if you don't 
+recall how to do this).
+
+We should have something like this:
+
+![basic_session_details](./images/basic_session_details.png)
+
+As we did before we are going to define a class to adapt the server response to our needs. So we add a new **session-details.ts** 
+typescript file in the shared folder.
+
 ```typescript
-constructor(public navCtrl: NavController, 
-            private navParams: NavParams, 
-            private programService : ProgramService) {
-    this.title = (this.navParams.data as Moment).format('DD dddd');
+export class SessionDetails {
+  title: string;
+  description: string;
+  type: string;
+  level?: string;
+  track?:string;
+  room?: string;
+  
+  constructor(rawSessionDetails: any = {}) {
+    this.title = rawSessionDetails.title;
+    this.description = rawSessionDetails.body;
+    this.type = rawSessionDetails.field_session_type || 'keynote';
+    this.level = rawSessionDetails.field_session_level;
+    this.track = rawSessionDetails.field_session_track_type;
+    this.room = rawSessionDetails.field_room;
   }
+}
+```
+We can map the raw response to our own class as we did before so we have a **SessionDetails* instance in our _SessionPage_ 
+class to work with and we can start to display things.
+
+## 3. Displaying session details
+
+We will start with the title as we did before. We want to show the date and the time of the session properly formatted. 
+We can use the constructor to achieve this working with the **NavParams** as we did with the _ProgramPage_.
+This time, though, we are passing a custom object as params and the way we get them is a little bit different:
+```typescript
+constructor(private navCtrl: NavController,
+              private navParams: NavParams,
+              private sessionService: SessionService) {
+  const date = (this.navParams.get('date') as Moment).format('DD dddd');
+    
+  this.title = `${date} - ${this.navParams.get('startTime')}`;
+}
 ```
 
-This is how **Dependency Injection** works in Angular 2, the framework will take care of injecting the instance of ProgramService for you.
+Remember to declare the _title_ variable and to add the needed imports for _momentjs_.
+Now we can substitute the hardcoded title of the page with the title we just built.
+```html
+<ion-title>{{title}}</ion-title>
+```
 
-You should now be getting something like this:
+Once we have the page title properly set we can start to display the session data. To do it, first we need to store the 
+retrieved session from our service in a variable to make it visible by the view, so we declare a session variable and we 
+assign its value on the subscription as we did in the program page.
+Now we will display the title of the session in our view to check everything is working fine adding a h1 tag with the 
+title as the innerHtml as we did before.
+```html
+<h1 [innerHtml]="session.title"></h1>
+```
 
-![first_request](./images/first_request.png)
+We give a try and we get this:
+![error](./images/error.png)
 
-## 2. Transforming the response
+The error is due to the fact that we are trying to access to a property of session when it's already undefined. Remember 
+the _ionViewDidLoad_ is called once the view has been loaded. Then, it's trying to access to session even before we call 
+our service to fetch the data.
 
-Now that we have the data from the Drupal backend we need to adapt it to our needs. Inspecting the response we can see 
-that there are three different types of entities mixed in the program: sessions, keynotes and breaks. As for our needs 
-we can consider all of them as a single entity or class: **Session**.
+There are several ways to fix this. We can wrap what we want to show in an element with a **ngIf** so it won't be rendered 
+until we get the data.
 
-Then we need to define this **Session** as an _interface_ or as a _class_. We will pick a class so we delegate the 
-responsibility of creating an instance of the class from the raw response to the class itself. We will create a new 
-_session.ts_ typescript file in a new **shared** folder.
+Another option is to initialize the session variable with a **new SessionDetails**.
 
-This is what we need right now, we will refactor the class as we need it.
+We will use the later as we don't need to keep watching the session once it has been assigned.
+
+Now everything should be working fine and we should be able to view the title of the session.
+We can display then the rest of the session details:
+```html
+<ion-content padding>
+  <h1 [innerHtml]="session.title"></h1>
+  <h5 class="info-row">
+    <span>{{session.type}}</span>
+    <span>{{session.level}}</span>
+  </h5>
+  <h5 class="info-row">
+    <span>{{session.track}}</span>
+    <span>{{session.room}}</span>
+  </h5>
+
+  <div class="session-description" [innerHtml]="session.description" text-wrap></div>
+</ion-content>
+```
+
+With the following styles:
+```scss
+page-session {
+
+  .info-row {
+    span:nth-child(2) {
+      float: right;
+    }
+  }
+
+  .session-description {
+    line-height: 2rem;
+  }
+}
+```
+
+This should produce something similar to this:
+![session_details](./images/session_details.png)
+
+## 4. Adding speakers
+
+We are showing the details of the sessions but there is a thing still missing, the speakers. The speakers information 
+comes in two flavours: the keynote speakers and the session speakers. For the firsts we get all the information from the 
+request to the session details but for the later we just get the array of the speakers ids.
+
+We will take care of the keynote speakers first. We start by creating a new **Speaker** class in a _speaker.ts_ file in 
+our shared folder with the following fields:
 
 ```typescript
-export class Session {
-  id: string;
+export class Speaker {
+  name: string;
+  avatar: string;
+  position?: string;
+  bio?: string;
+}
+```
+
+Keynote speakers info has details about the company they work for so we should define a type to model it as well. We 
+will create an interface in this case in a _company.ts_ file in our shared folder.
+```typescript
+export interface Company {
+  name: string;
+  bio: string;
+  logo: string;
+}
+```
+
+Now we can add the company field to the **Speaker** class. Next we can create our constructor to map the speaker from 
+the raw data coming from the server:
+```typescript
+constructor(rawSpeaker: any ={}) {
+  this.name = rawSpeaker.field_speaker_full_name;
+  this.avatar = rawSpeaker.speaker_image;
+  this.position = rawSpeaker.field_speaker_position;
+  this.bio = rawSpeaker.field_speaker_bio;
+  
+  if (typeof rawSpeaker.field_company_name !== 'undefined') {
+    this.company = {
+      name: rawSpeaker.field_company_name,
+      logo: rawSpeaker.company_logo,
+      bio: rawSpeaker.field_company_bio
+    };
+  }
+}
+```
+
+Now we will take care of the session and workshop speakers. As long as we need to reach a new endpoint to get the speakers 
+information we need a new provider to handle the request.
+
+So we follow the same steps we have been following to create a provider:
+* Use de Ionic CLI to generate the file 
+  ```ionic g provider speaker```
+* Rename the file to **speaker.service.ts** and the class to **SpeakerService**.
+* Make http private
+* Add the service to the providers list in the **app.module.ts**
+
+Now we can work on our service. We will implement one method: **getSpeakers** that receives an array of speakers id and 
+returns an Observable of Speaker.
+The method will make a get request to the endpoint that we will define as a constant, as usual. Then we will map the 
+result to get the json value of the response.:
+```typescript
+@Injectable()
+export class SpeakerService {
+
+  private readonly drupalUrl = 'http://your-ip/devdaysseville/api/users';
+
+  constructor(private http: Http) { }
+
+  getSpeakers(speakersIds: string[]): Observable<any[]> {
+    return this.http
+               .get(`${this.drupalUrl}/${speakersIds.join(',')}`)
+               .map(res => res.json());
+  }
+}
+```
+
+Don't forget to add the corresponding imports (for Observable and Speaker).
+
+Let's use the service to see what we get from the server now. In our **SessionService** we will add a private method to 
+build the session details instead of just creating a new session from the raw session coming from the server.
+This method will create the new Session but also will take care of calling the speakerService to retrieve the speakers 
+info if needed. For now we will print in the console what we get from the server:
+
+```typescript
+getSession(sessionId: string): Observable<SessionDetails> {
+  return this.http
+             .get(`${this.drupalUrl}/${sessionId}`)
+             .map(res => res.json()[0])
+             .map(rawSessionDetails => this.buildSession(rawSessionDetails));
+}
+
+private buildSession(rawSessionDetails): SessionDetails {
+  const session = new SessionDetails(rawSessionDetails);
+
+  if (session.type !== 'keynote') {
+    this.speakerService.getSpeakers(rawSessionDetails.field_user_ref)
+    .subscribe(speakers => console.log(speakers));
+  }
+
+  return session;
+}
+```
+
+We get something similar to this:
+![basic_speakr](./images/basic_speaker.png)
+
+Now we must work on our Speaker class to make it compatible with this response. We add a nickname and modify the 
+constructor to accept the values coming from the raw speaker.
+We should end up with a Speaker class like this:
+```typescript
+import { Company } from './company';
+
+export class Speaker {
+  name: string;
+  avatar: string;
+  nickname?: string;
+  position?: string;
+  bio?: string;
+  company?: Company;
+
+  constructor(rawSpeaker: any = {}) {
+    this.name = rawSpeaker.field_speaker_full_name || rawSpeaker.field_register_name;
+    this.avatar = rawSpeaker.speaker_image || rawSpeaker.uri || 'assets/images/avatar.svg';
+    this.nickname = rawSpeaker.name;
+    this.position = rawSpeaker.field_speaker_position;
+    this.bio = rawSpeaker.field_speaker_bio;
+
+    if (typeof rawSpeaker.field_company_name !== 'undefined') {
+      this.company = {
+        name: rawSpeaker.field_company_name,
+        logo: rawSpeaker.company_logo,
+        bio: rawSpeaker.field_company_bio
+      };
+    }
+  }
+}
+```
+
+Now we can let the service to handle the response so it returns the array of speakers itself.
+```typescript
+getSpeakers(speakersIds: string[]): Observable<Speaker[]> {
+  return this.http
+             .get(`${this.drupalUrl}/${speakersIds.join(',')}`)
+             .map(res => res.json())
+             .map(rawSpeakers => rawSpeakers.map(rawSpeaker => new Speaker(rawSpeaker)));
+}
+```
+
+Now we must add this speakers to the **SessionDetails** class, in this case we will let the speakers attribute be of type Observable<Speaker[]>.
+We can use this type and instead of a "concrete" class and let the view handle the Observable. 
+To handle keynote speakers we can use the constructor of the class we already have to create the speaker instance and wrap it into an Observable.
+Then our **SessionDetails** class (_session-details.ts_) should look like this:
+
+```typescript
+import { Speaker } from './speaker';
+import { Observable } from 'rxjs';
+
+export class SessionDetails {
   title: string;
-  startTime: string;
-  endTime: string;
+  description: string;
+  type: string;
   level?: string;
   track?: string;
-  type?: string;
-  venue?: string;
+  room?: string;
+  speakers?: Observable<Speaker[]>;
+
+  constructor(rawSessionDetails: any = {}) {
+    this.title = rawSessionDetails.title;
+    this.description = rawSessionDetails.body;
+    this.type = rawSessionDetails.field_session_type || 'keynote';
+    this.level = rawSessionDetails.field_session_level;
+    this.track = rawSessionDetails.field_session_track_type;
+    this.room = rawSessionDetails.field_room;
+
+    if (this.type === 'keynote') {
+
+      const speaker = new Speaker(rawSessionDetails);
+
+      this.speakers = Observable.of([speaker]);
+    }
+  }
 }
 ```
 
-We can add now a constructor that takes one of the objects from Drupal an returns a Session object.
+This is one way of creating an observable from a given value. Remember to put the speaker inside of an array to fulfill the return type.
+
+The session and workshop speakers will be handled from the **SessionService**. Instead of printing in console the result 
+of the call to the SpeakerService we will assign the Observable to the speakers variable.
 
 ```typescript
-constructor(rawSession: any = {}) {
-  const times = rawSession.field_start_end_period ? rawSession.field_start_end_period.split('-') : null;
+private buildSession(rawSessionDetails): SessionDetails {
+  const session = new SessionDetails(rawSessionDetails);
 
-  this.id = rawSession.nid;
-  this.title = rawSession.field_break_title || rawSession.title;
-  this.startTime = times && times[0].trim();
-  this.endTime = times && times[1].trim();
-  this.level = rawSession.field_session_level;
-  this.track = rawSession.field_session_track_type;
-  this.type = rawSession.type;
-  this.venue = rawSession.field_break_description || rawSession.field_room;
+  if (session.type !== 'keynote') {
+    session.speakers = this.speakerService.getSpeakers(rawSessionDetails.field_user_ref);
+  }
+
+  return session;
 }
 ```
 
-We can use this new class definition to map our response adding a new map statement in our service and change the returned 
-type to Observable<Session[]> (don't forget to import Session class):
-```typescript
-getProgram(date: Moment): Observable<Session[]> {
-  const programId = this.dates[date.format('YYYY-MM-D')];
-
-  return this.http
-             .get(`${this.drupalUrl}/${programId}`)
-             .map(res => res.json())
-             .map(rawSessions => rawSessions.map(rawSession => new Session(rawSession)));
-}
-```
-
-We also can take advantage of the typing and sort the response by its starting date adding a new map statement:
-```typescript
-.map(sessions => sessions.sort((s1, s2) => s1.startTime.localeCompare(s2.startTime)))
-```
-
-## 3. Representing data
-
-We're ready to show some data in our page. We will use an [Ionic 2 List](http://ionicframework.com/docs/v2/components/#lists) 
-in combination with an [Ionic Virtual Scroll](http://ionicframework.com/docs/v2/api/components/virtual-scroll/VirtualScroll/) to increase performance.
-The first step will be to set the data we get from the service into a variable to be accessible from the view. We declare 
-a _sessions_ variable of type _Session[]_ and then we swap the console.log statement for an assignation in the _program.ts_ 
-file, ```this.sessions = program```.
-
-We can then start with the markup, so we go to the program.html file. First we will define **ion-list** element  with the 
-needed attributes for the **virtualScroll** with a **ion-item** with the **virtuslItem** attribute inside and we will show the title of the session:
-
+Now it's time to show the speakers in the SessionDetailsPage. We will use an avatar list again. In this case, we won't 
+use virtual scroll though, so it will be simpler.
+Before the description of the section we will add our list:
 ```html
-<ion-list [virtualScroll]="sessions">
-  <ion-item *virtualItem="let session">
-    <h2 [innerHtml]="session.title" text-wrap></h2>  
+<ion-list>
+  <ion-item *ngFor="let speaker of session.speakers">
+    <ion-avatar item-left>
+      <img [src]="speaker.avatar">
+    </ion-avatar>
+
+    <h2>{{speaker.name}}</h2>
+    <ion-note text-wrap>{{speaker.nickname || speaker.position}}</ion-note>
+    <p [innerHtml]="speaker.bio" text-wrap></p>
+    <ng-container *ngIf="speaker.company">
+      <h2>{{speaker.company.name}}</h2>
+      <img class="company-logo" [src]="speaker.company.logo">
+      <p [innerHtml]="speaker.company.bio" text-wrap></p>
+    </ng-container>
   </ion-item>
 </ion-list>
 ```
 
-This syntax is a little bit special. We use square brackets in an attribute to tell Angular that the value we are 
-assigning to the attribute comes from a variable. In this case we are assigning to the **virtualItem** attribute (it's a 
-directive, actually, an Angular construct to extend html) the array of sessions to iterate through.
+Let's give it a try!
+![async_error](./images/async_error.png)
 
-The virtual scroll will set a fixed number of items in the DOM according with the size of the screen and the size of the 
-items and handle the scroll just changing the content of these items. Having a DOM with less item increases performance 
-dramatically since we limit the number of event listeners.
+We get an error! Angular is telling us that **ngFor only supports binding to Iterables such as Arrays.**
+This is caused because we are trying to iterate over an Observable and this is not possible. We must unwrap it before. 
+We will use the [**async** built in pipe](https://angular.io/docs/ts/latest/api/common/index/AsyncPipe-pipe.html) for this work.
+Just adding ** | async** after _let speaker of session.speakers_ should fix it and you should be able to see the speakers now.
+![speaker](./images/speakers.png)
 
-The asterisk syntax is used by directives that alter the DOM (as the ngFor was doing before). The **virtualItem** attribute 
-works with the previous **virtualScroll** and provides a way to define the variable we use in the iteration.
-
-Finally we use **innerHtml** to correctly show the titles because they contain characters defined by its ASCII code and 
-**text-wrap** to allow the text to spread to as many lines as it needs.
-It should look like this by now:
-
-![basic_list](./images/basic_list.png)
-
-Next thing we need is a way to show the start time of the events. We can use [list dividers](http://ionicframework.com/docs/v2/components/#list-dividers) 
-as a way to group events by start time and show this information.
-
-So we add an **ion-item-divider** element and we will populate it using another feature of the virtual scroll api, the **headerFn**. 
-This is a method that Ionic will call for each item during the iteration. We must define the method with the following signature:
-```typescript
-getStartTime(record, recordIndex, records): string {
-
-}
-```
-
-With these parameters we must return the header for the given record and Ionic will take care of grouping the items that 
-share the same header. So we write a method that looks like:
-```typescript
-getStartTime(record, recordIndex, records): string {
-  if (recordIndex === 0) {
-    return record.startTime;
-  } else {
-    return record.startTime === records[recordIndex - 1].startTime ? null : record.startTime;
-  }
-}
-```
-
-Now we use this method in the view by adding to the _ion-item_ element a **headerFn** attribute that refers to this method. 
-We are using here a variable so we must wrap the attribute in square brackets: 
-```typescript
-[headerFn]="getStartTime"
-```
-Then we bind the returned header to our _ion-item-divider_ with a **virtualItem** attribute that allows us store that 
-value in a variable to be used. So our _ion-item-divider_ will look like this:
-```html
-<ion-item-divider *virtualHeader="let startTime" color="light">{{startTime}}</ion-item-divider>
-```
-
-The color attribute is another feature of Ionic that allows to assign theme defined colors to elements. You can check 
-this colors in [this file](./DrupalDevDays/src/theme/variables.scss). In this case we assign the light color to set a 
-light gray color to our dividers. 
-
-You should have the _item-list_ like this:
-```html
-<ion-list [virtualScroll]="sessions" [headerFn]="getStartTime">
-    <ion-item-divider *virtualHeader="let startTime" color="light">{{startTime}}</ion-item-divider>
-
-    <ion-item *virtualItem="let session">
-      <h2 [innerHtml]="session.title" text-wrap></h2>
-    </ion-item>
-  </ion-list>
-```
-
-## 4. Making things pretty
-
-Let's do our list look a little bit better by adding an image to represent the track of each session.
-
-But first things first, download [this zip file](./images.zip) and unzip it in the _src/assets_ folder. You should end 
-up with a _src/assets/images_ folder containing the ten image files we will be using.
-We will use the [avatar-list](http://ionicframework.com/docs/v2/components/#avatar-list) to show this image. This image 
-will depend on the type and track of session.
-
-To achieve this we will create a method in our ProgramPage class that will return the url of the image depending on the session:
-```typescript
-getImage(session: Session): string {
-  if (session.type) {
-    const imageName: string = this.getImageNameFromTrack(session.track);
-    return `assets/images/${imageName}.svg`
-  } else {
-    return 'assets/images/poison.svg';
-  }
-}
-
-private getImageNameFromTrack(track: string): string {
-  const result = track || 'other';
-  return result.toLowerCase()
-               .replace(' ', '-');
-}
-```
-
-Now we add the **ion-avatar** element inside the _ion-item_ element to show the image:
-```html
-<ion-avatar item-left>
-  <img [src]="getImage(session)">
-</ion-avatar>
-```
-
-Again we are using square brackets with the _src_ attribute because we are using a variable to define the content of the src. 
-This will prevent errors loading the image while getting the url.
-We also used the _item-left_ because we want our image to be shown to the left of the list.
-
-There are yet a couple of extra fields we can show in our list: the level and the type of session.
-We will use another Ionic built-in component, the **ion-note**. We want them to be placed in a new line so we will define 
-a div that wraps our two **ion-note** elements. We will use the _text-uppercase_ attribute and add a little bit of styling 
-to have each a note to the left and the other to the right.
-```html
-<div class="session-extra-info" text-uppercase>
-  <ion-note>{{session.type}}</ion-note>
-  <ion-note>{{session.level}}</ion-note>
-</div>
-```
-
-We add the styling to the _program.scss_ file.
+As a final touch we add a little bit of styling to the **company-logo** class (in the session.scss file):
 ```scss
-h2 {
-  margin-bottom: 2rem !important;
-}
-
-.session-extra-info {
-  ion-note:nth-child(2) {
-    float: right;
-  }
+.company-logo {
+  width: 50%;
 }
 ```
 
-This is what we have so far.
+We have the session details working just fine right now.
 
-![detailed_list](./images/detailed_list.png)
-
-The final touch, we can see that Ionic is asking as to provide an "approxItemHeight" input to ensure proper virtual scroll 
-rendering, so we will add this attribute to the _ion-list_ element with a value of 106px, the most common height of our item. 
-This will allow Ionic calculate the number of items it can display.
-
-Jump to the next branch [Step 04 Populating the Session Page](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step04-Populating_the_Session_Page) 
+Jump to the next branch [Step 05 Adding Native features](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step05-Adding_Native_features) 
 to keep coding!
