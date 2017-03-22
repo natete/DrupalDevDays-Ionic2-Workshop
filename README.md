@@ -1,395 +1,314 @@
-# Step 02 Preparing the Ionic application
+# Step 03 Populating the Program Page
 
-[**1. Overview**](#1-overview)
+[**1. Getting data from Drupal**](#1-getting-data-from-drupal)
 
-[**2. Rename given pages**](#2-rename-given-pages)
+[**2. Transforming the response**](#2-transforming-the-response)
 
-[**3. Populate the side menu**](#3-populate-the-side-menu)
+[**3. Representing data**](#3-representing-data)
 
-[**4. Enable navigation to the program page**](#4-enable-navigation-to-the-program-page)
+[**4. Making things pretty**](#4-making-things-pretty)
 
-[**5. Navigation params**](#5-navigation-params)
+## 1. Getting data from Drupal
 
-## 1. Overview
+It's time to give some content to our **Program Page**. But to do it we must get data from somewhere and here is where 
+the RESTful api we prepared on Drupal comes into play.
 
-Our application lives in the src folder and should look like this:
+In order to keep separation of concerns Ionic uses classes called **Providers**. These classes are normal plain classes 
+decorated with the ```@Injectable()``` decorator to allow dependency injection. These classes are singletons, so we can 
+consider them as a way to share information across the application and as a way to store the state of the application. 
 
-![Folders structure](./images/folders_structure.png)
- 
-Inside of this folder there are two folders we must pay attention to by now:
+We will use the **Ionic CLI** again to generate the provider we need by typing in the project folder:
+```bash
+ionic g provider program
+```
 
-* **app**: it's the main folder of the app, where the application when it starts and where we configure the main module of our application. This folder contains five files:
+This will create a _program.ts_ file in a providers folder. I consider good practice to rename this file to **program.service.ts** 
+so it's easier to know the content of the file and to differentiate it from the _program.ts_ page file. We should also 
+rename the class to **ProgramService**.
 
-  * _app.component.ts_: is the controller of this first view. This is where we will define the items of the side menu and where we will take the actions needed on the application startup.
-  * _app.html_: is the first view to be loaded. In our case it's where the side menu is defined.
-  * _app.module_: this is where we configure the Angular module of the applications. We must declare here the pages and providers we use in the application.
-  * _app.scss_: where we define the global styles of the application.
-  * _main.ts_: where the underlying Angular application is bootstrapped.
+Prior to use our service we must declare it in our module, so we will go to our _app.module.ts_ and add it to the providers 
+array with its corresponding import statement.
 
-* **pages**: it's where our pages live (we can associate the idea of a page with the idea of a view o our app). Each page, usually is built with three files:
+This class the Ionic CLI created for us has already injected the Http class (we should make it private). This is the class we 
+use to perform requests. 
 
-  * _the markup file_: a html file with the markup of the page.
-  * _the styles file_ a scss file with the styles of the page.
-  * _the typescript file_: this file acts as the controller of the view and is where we add behavior to the view.
-  
-## 2. Rename given pages
-
-Our application uses just two views so we will recycle the ones the Ionic CLI gave us to meet our needs.
-So we need to rename _page1_ folder and files to _program_. If your IDE doesn't dispose of refactoring tools you must make the following changes in the following files.
-
-* **program.ts**:  
-  * Change the selector name from _page-page1_ to _page-program_
-  * Change the templateUrl from _page1.html_ to _program.html_
-  * Change the class name from _Page1_ to _ProgramPage_
-* **program.scss**: change the selector from _page-page1_ to _page-program_
-* **app.module.ts**: 
-  * Change the _Page1_ import from 
-    ```typescript
-    import { Page1 } from '../pages/page1/page1';
-    ``` 
-    to 
-    ```typescript
-    import { ProgramPage } from '../pages/program/program';
-    ```
-  * Change both in *declarations* and *entryComponents* from _Page1_ to _ProgramPage_ 
-  
-Proceed similarly recycling Page2 into Session:
-
-* **session.ts**:  
-  * Change the selector name from _page-page2_ to _page-session_
-  * Change the templateUrl from _page2.html_ to _session.html_
-  * Change the class name from _Page2_ to _SessionPage_ and don't forget any reference "this.navCtrl.push(SessionPage, "
-* **session.scss**: change the selector from _page-page2_ to _page-session_
-* **app.module.ts**: 
-  * Change the _Page2_ import from 
-    ```typescript
-    import { SessionPage } from '../pages/page2/page2';
-    ```
-    to 
-    ```typescript
-    import { SessionPage } from '../pages/session/session';
-    ```
-  * Change both in **declarations** and **entryComponents** from _Page2_ to _SessionPage_
-   
-Your pages folder should look like this now:
-
-![files_after_refactor](./images/files_after_refactor.png)
-
-Finally to make things work again we will remove any references to Page1 and Page2 from _app.component.ts_ and we'll let
-it just pointing to our ProgramPage which will act as our home page. It should look like this:
+We will start by declaring a couple of constants that we will need: the **base url** for our requests and an object to relate dates with **Drupal nodes**.
 
 ```typescript
-import { Component, ViewChild } from '@angular/core';
-import { Nav, Platform } from 'ionic-angular';
-import { StatusBar, Splashscreen } from 'ionic-native';
-import { ProgramPage } from '../pages/program/program';
+private readonly drupalUrl = 'https://your-ip/devdaysseville/api/program';
 
-@Component({
-  templateUrl: 'app.html'
-})
-export class MyApp {
-  @ViewChild(Nav) nav: Nav;
+private readonly dates = {
+  '2017-03-21': 55,
+  '2017-03-22': 56,
+  '2017-03-23': 57,
+  '2017-03-24': 58,
+  '2017-03-25': 59,
+};
+```
 
-  rootPage: any = ProgramPage;
+No we create a method to get a program by its date. This method receives a Moment object representing the date and returns an Observable, which is:
+> A representation of any set of values over any amount of time. This the most basic building block of RxJS.
 
-  pages: Array<{ title: string, component: any }>;
+It's, then, a construct of [RxJs](http://reactivex.io/rxjs/) the javascript implementation for **Reactive Programming**. 
+Our method, for now, just makes the requests and gets the data from the response:
 
-  constructor(public platform: Platform) {
-    this.initializeApp();
+```typescript
+getProgram(date: Moment): Observable<any[]> {
+  const programId = this.dates[date.format('YYYY-MM-D')];
 
-    // used for an example of ngFor and navigation
-    this.pages = [
-      { title: 'Program Page', component: ProgramPage }
-    ];
-
-  }
-
-  initializeApp() {
-    this.platform.ready()
-        .then(() => {
-          // Okay, so the platform is ready and our plugins are available.
-          // Here you can do any higher level native things you might need.
-          StatusBar.styleDefault();
-          Splashscreen.hide();
-        });
-  }
-
-  openPage(page) {
-    // Reset the content nav to have just this page
-    // we wouldn't want the back button to show in this scenario
-    this.nav.setRoot(page.component);
-  }
+  return this.http
+             .get(`${this.drupalUrl}/${programId}`)
+             .map(res => res.json());
 }
 ```
-
-Now everything should work just fine in your application and we can carry on and start with the fun part.
-
-## 3. Populate the side menu
-
-To start giving some content to our application we will start with the side menu. We want something like this:
-
-![sidemenu.png](./images/sidemenu.png)
-
-First we will create an array with the options we want to show in the menu. It will be an array of dates. 
-In order to work easily with dates we will install a library called [momentjs](https://momentjs.com/). In the application folder we will type:
-  
-```bash
-yarn add moment
+Don't forget to import Observable and Moment in the program.service.ts
 ```
-or
-```bash
-npm i --save moment
-```
-
-Once we have our library installed we need to import it in our app.component.ts by adding:
-
-```typescript
+import { Observable } from 'rxjs/Observable';
 import * as moment from 'moment';
-```
-
-Now we have available moment in this file and we can create an array of dates like this in our class inside the app.component.ts file:
-
-```typescript
-dates = [
-  moment('2017-03-21'),
-  moment('2017-03-22'),
-  moment('2017-03-23'),
-  moment('2017-03-24'),
-  moment('2017-03-25')
-];
-```
-
-Don't forget to remove the pages declaration and the use of this legacy variable we had:
-
-```typescript
-  pages: Array<{ title: string, component: any }>;
-```
-
-and 
-
-```typescript
-// used for an example of ngFor and navigation
-this.pages = [
-  { title: 'Program Page', component: ProgramPage }
-];
-```
-
-Next we must edit the html where the side menu lives (_app.html_). First we will change the ion-title from **Menu** to 
-**Seville DrupalDevDays**. Then we will add a header to the ion-list:
-
-```html
-<ion-list-header>Program</ion-list-header>
-```
-
-Now we proceed to arrange our dates buttons. We must keep the _ngFor_ to iterate through our dates so we will change the iteration to:
-```typescript
-let date of dates
-```
-Since we don't have a behavior yet for this buttons we remove from the button the action associated with the click event:
-  
-```typescript
-(click)="openPage(p)"
-```
-  
-We must also change the content of each button. Then we remove:
-  
- ```typescript
- {{p.title}}
- ```
- 
-Now we start to make things look like we want to. We will set an icon and the date properly formatted of each available page. 
-To add the icon we will add a [**ion-icon**](http://ionicframework.com/docs/v2/components/#icons) component and we will 
-set the attribute name to _calendar_. You have a [huge set of icons](http://ionicframework.com/docs/v2/ionicons/) 
-available to be used out of the box. We want to keep on the left of the button, so we will add the icon-left attribute.
-  
-```html
-<button menuClose ion-item *ngFor="let date of dates">
-  <ion-icon name="calendar"></ion-icon>
-</button>
-```
-
-Finally we add the text of the button, the properly formatted date. To do so we will use the **date** variable exposed 
-by the _ngFor_. This variable represents an item of the _dates_ array we defined previously. To print the content of a 
-variable or expression we wrap it into double curly braces **{{}}**. We will take advantage of _momentjs_ features to 
-format the date properly.
-
-```typescript
-{{date.format('DD dddd')}}
-```
-
-The final touch is display this date in uppercase. We will use, _text-uppercase_ another provided attribute utility to 
-achieve it (you can check the available utils attributes [here](http://ionicframework.com/docs/v2/theming/css-utilities/)). 
-We will surround the text of the button in a _span_ with the mentioned attribute. If everything went right we should have:
-  
-```html
-<button menuClose ion-item *ngFor="let date of dates" icon-left text-uppercase>
-  <ion-icon name="calendar"></ion-icon>
-  <span text-uppercase>{{date.format('DD dddd')}}</span>
-</button>
-```
-
-After these changes our menu should be looking something like this in Android:
-
-![menu](./images/menu.png)
-
-## 4. Enable navigation to the program page
-
-Now we want our side menu buttons to do something. Their task is to navigate to a date of the schedule. Then we will 
-start working on our **app.component.ts** file. We create a **goToProgram** method that receives the target date as parameter.
-
-```typescript
-goToProgram(date: Moment) {
-
-}
-```
-
-In order to use the moment type we must import it by adding 
-```typescript
 import Moment = moment.Moment;
 ```
 
-Navigation is managed by the **NavController**. We already have **Nav** (a declarative component for a NavController) 
-available using a feature of Angular 2 that allows a component to get access to a child component and its methods. In 
-this case we use the Nav component, an Ionic built-in component. 
+We will improve this method later, now we are gonna give it a try.
+We will go back to our _program.ts_ file and add a new method called **ionViewDidLoad**. This method is a lifecycle hook 
+and it will be called by Ionic once the page has been loaded. It's then the moment to request the asynchronous content of the page.
 
-Basic navigation in ionic works like a stack and we can use it in two ways:
-* **nav.setRoot(_page_)**: we use this method to change the root of the application, thus disallowing to go back and clearing the navigation stack.
-* **navCtrl.push(_page_) | navCtrl.pop()**: we use these methods to add or remove pages from the navigation stack.
- 
-The Navigation API is much more complex than that, you can refer to [Nav](https://ionicframework.com/docs/v2/api/components/nav/Nav/) 
-and [NavController](https://ionicframework.com/docs/v2/api/navigation/NavController/) documentation to explore more navigation options.
-
-In this case we want the target program page to be the new root of our application, so our _goToProgram_ method will look like this:
-  
+In this method we will call our service method and then subscribe to the result and print it to the console to check if it's working:
 ```typescript
-goToProgram(date: Moment) {
-  this.nav.setRoot(ProgramPage, date);
+ionViewDidLoad() {
+  this.programService.getProgram(this.navParams.data as Moment)
+      .subscribe(program => console.log(program));
 }
 ```
 
-To use this method we will attach this method to the click event of the button. In Angular 2 and Ionic 2 event binding 
-is done by adding the event name surrounded by parenthesis (```(eventName)="methodToHandleTheEvent($event, params)"```). 
-So in our case our button must look:
+Maybe your IDE is warning you that _this.programService_ was not defined. You need to import _ProgramService_ and inject it in our class like this:
+```typescript
+constructor(public navCtrl: NavController, 
+            private navParams: NavParams, 
+            private programService : ProgramService) {
+    this.title = (this.navParams.data as Moment).format('DD dddd');
+  }
+```
+
+This is how **Dependency Injection** works in Angular 2, the framework will take care of injecting the instance of ProgramService for you.
+
+You should now be getting something like this:
+
+![first_request](./images/first_request.png)
+
+## 2. Transforming the response
+
+Now that we have the data from the Drupal backend we need to adapt it to our needs. Inspecting the response we can see 
+that there are three different types of entities mixed in the program: sessions, keynotes and breaks. As for our needs 
+we can consider all of them as a single entity or class: **Session**.
+
+Then we need to define this **Session** as an _interface_ or as a _class_. We will pick a class so we delegate the 
+responsibility of creating an instance of the class from the raw response to the class itself. We will create a new 
+_session.ts_ typescript file in a new **shared** folder.
+
+This is what we need right now, we will refactor the class as we need it.
+
+```typescript
+export class Session {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  level?: string;
+  track?: string;
+  type?: string;
+  venue?: string;
+}
+```
+
+We can add now a constructor that takes one of the objects from Drupal an returns a Session object.
+
+```typescript
+constructor(rawSession: any = {}) {
+  const times = rawSession.field_start_end_period ? rawSession.field_start_end_period.split('-') : null;
+
+  this.id = rawSession.nid;
+  this.title = rawSession.field_break_title || rawSession.title;
+  this.startTime = times && times[0].trim();
+  this.endTime = times && times[1].trim();
+  this.level = rawSession.field_session_level;
+  this.track = rawSession.field_session_track_type;
+  this.type = rawSession.type;
+  this.venue = rawSession.field_break_description || rawSession.field_room;
+}
+```
+
+We can use this new class definition to map our response adding a new map statement in our service and change the returned 
+type to Observable<Session[]> (don't forget to import Session class):
+```typescript
+getProgram(date: Moment): Observable<Session[]> {
+  const programId = this.dates[date.format('YYYY-MM-D')];
+
+  return this.http
+             .get(`${this.drupalUrl}/${programId}`)
+             .map(res => res.json())
+             .map(rawSessions => rawSessions.map(rawSession => new Session(rawSession)));
+}
+```
+
+We also can take advantage of the typing and sort the response by its starting date adding a new map statement:
+```typescript
+.map(sessions => sessions.sort((s1, s2) => s1.startTime.localeCompare(s2.startTime)))
+```
+
+## 3. Representing data
+
+We're ready to show some data in our page. We will use an [Ionic 2 List](http://ionicframework.com/docs/v2/components/#lists) 
+in combination with an [Ionic Virtual Scroll](http://ionicframework.com/docs/v2/api/components/virtual-scroll/VirtualScroll/) to increase performance.
+The first step will be to set the data we get from the service into a variable to be accessible from the view. We declare 
+a _sessions_ variable of type _Session[]_ and then we swap the console.log statement for an assignation in the _program.ts_ 
+file, ```this.sessions = program```.
+
+We can then start with the markup, so we go to the program.html file. First we will define **ion-list** element  with the 
+needed attributes for the **virtualScroll** with a **ion-item** with the **virtuslItem** attribute inside and we will show the title of the session:
+
 ```html
-<button menuClose ion-item *ngFor="let date of dates" (click)="goToProgram(date)" icon-left text-uppercase>
+<ion-list [virtualScroll]="sessions">
+  <ion-item *virtualItem="let session">
+    <h2 [innerHtml]="session.title" text-wrap></h2>  
+  </ion-item>
+</ion-list>
 ```
 
-Since we are controlling the root of our application by ourselves, we must remove old default navigation controls. We must remove:
-```typescript
-[root]="rootPage"
-```
-from the _ion-nav_ tag in the _app.html_ and
-```typescript
-rootPage: any = ProgramPage;
-``` 
-from the _app.component.ts_ file.
+This syntax is a little bit special. We use square brackets in an attribute to tell Angular that the value we are 
+assigning to the attribute comes from a variable. In this case we are assigning to the **virtualItem** attribute (it's a 
+directive, actually, an Angular construct to extend html) the array of sessions to iterate through.
 
-We must also remove the legacy navigation method:
+The virtual scroll will set a fixed number of items in the DOM according with the size of the screen and the size of the 
+items and handle the scroll just changing the content of these items. Having a DOM with less item increases performance 
+dramatically since we limit the number of event listeners.
+
+The asterisk syntax is used by directives that alter the DOM (as the ngFor was doing before). The **virtualItem** attribute 
+works with the previous **virtualScroll** and provides a way to define the variable we use in the iteration.
+
+Finally we use **innerHtml** to correctly show the titles because they contain characters defined by its ASCII code and 
+**text-wrap** to allow the text to spread to as many lines as it needs.
+It should look like this by now:
+
+![basic_list](./images/basic_list.png)
+
+Next thing we need is a way to show the start time of the events. We can use [list dividers](http://ionicframework.com/docs/v2/components/#list-dividers) 
+as a way to group events by start time and show this information.
+
+So we add an **ion-item-divider** element and we will populate it using another feature of the virtual scroll api, the **headerFn**. 
+This is a method that Ionic will call for each item during the iteration. We must define the method with the following signature:
 ```typescript
-openPage(page) {
-  // Reset the content nav to have just this page
-  // we wouldn't want the back button to show in this scenario
-  this.nav.setRoot(page.component);
+getStartTime(record, recordIndex, records): string {
+
 }
 ```
 
-Finally we must declare a first page to be set as the root of the application on load. We can set just the first date as 
-the root of our application or go a little bit further and set the root page according to the date. We will set the 
-current date page as the root if it exists or the first page otherwise.
-
-We can achieve it easily using moment. We will create a private method to handle this and we will call this method within 
-the _platform.ready_ method:
-
-Our app.component.ts should look like this by now:
+With these parameters we must return the header for the given record and Ionic will take care of grouping the items that 
+share the same header. So we write a method that looks like:
 ```typescript
-import { Component, ViewChild } from '@angular/core';
-import { Nav, Platform } from 'ionic-angular';
-import { StatusBar, Splashscreen } from 'ionic-native';
-import * as moment from 'moment';
-import { ProgramPage } from '../pages/program/program';
-import Moment = moment.Moment;
-
-@Component({
-  templateUrl: 'app.html'
-})
-export class MyApp {
-  @ViewChild(Nav) nav: Nav;
-
-  dates = [
-    moment('2017-03-21'),
-    moment('2017-03-22'),
-    moment('2017-03-23'),
-    moment('2017-03-24'),
-    moment('2017-03-25')
-  ];
-
-  constructor(public platform: Platform) {
-    this.initializeApp();
-  }
-
-  initializeApp() {
-    this.platform.ready()
-        .then(() => {
-          // Okay, so the platform is ready and our plugins are available.
-          // Here you can do any higher level native things you might need.
-          StatusBar.styleDefault();
-          Splashscreen.hide();
-
-          this.goToFirstDay();
-        });
-  }
-
-  goToProgram(date: Moment) {
-    this.nav.setRoot(ProgramPage, date);
-  }
-
-  private goToFirstDay() {
-    const now = moment();
-
-    this.goToProgram(this.dates.find(date => now.isSame(date, 'day')) || this.dates[0]);
+getStartTime(record, recordIndex, records): string {
+  if (recordIndex === 0) {
+    return record.startTime;
+  } else {
+    return record.startTime === records[recordIndex - 1].startTime ? null : record.startTime;
   }
 }
 ```
 
-## 5. Navigation params
-
-Now we are able to use our side menu but we don't see any effect. We need to use the **navigation params**.
-The second parameter we passed to the _setRoot_ method is the navigation params. This is simple way to communicate pages.
-So, next we can start working on our **ProgramPage** to use this parameters.
-
-First of all we will remove the example content of the **program.html** file. This content is inside of the _ion-content_ tag. 
-We must also remove the _padding_ attribute from the ion-content since we don't want any padding in our component.
-The header bar is working fine for us but we don't want the _Page One_ title. Instead we want to show the date of the 
-Program Page we are.
-
-So we substitute this _Page One_ with the content of a variable we will create called **title**. 
-Again, to print the content of this variable we need to wrap it in double curly braces.
-```
-{{title}}}
-```
-
-Next we must declare and populate this _title_ variable. To do so we must work on **program.ts** and add the variable declaration:
+Now we use this method in the view by adding to the _ion-item_ element a **headerFn** attribute that refers to this method. 
+We are using here a variable so we must wrap the attribute in square brackets: 
 ```typescript
-title: string;
+[headerFn]="getStartTime"
+```
+Then we bind the returned header to our _ion-item-divider_ with a **virtualItem** attribute that allows us store that 
+value in a variable to be used. So our _ion-item-divider_ will look like this:
+```html
+<ion-item-divider *virtualHeader="let startTime" color="light">{{startTime}}</ion-item-divider>
 ```
 
-Then we must populate it with the data we receive from the navigation. To access this data we need an instance of **NavParams**. 
-We will use dependency injection to get it, so we must add a second parameter to the constructor leaving our constructor like this:
+The color attribute is another feature of Ionic that allows to assign theme defined colors to elements. You can check 
+this colors in [this file](./DrupalDevDays/src/theme/variables.scss). In this case we assign the light color to set a 
+light gray color to our dividers. 
+
+You should have the _item-list_ like this:
+```html
+<ion-list [virtualScroll]="sessions" [headerFn]="getStartTime">
+    <ion-item-divider *virtualHeader="let startTime" color="light">{{startTime}}</ion-item-divider>
+
+    <ion-item *virtualItem="let session">
+      <h2 [innerHtml]="session.title" text-wrap></h2>
+    </ion-item>
+  </ion-list>
+```
+
+## 4. Making things pretty
+
+Let's do our list look a little bit better by adding an image to represent the track of each session.
+
+But first things first, download [this zip file](./images.zip) and unzip it in the _src/assets_ folder. You should end 
+up with a _src/assets/images_ folder containing the ten image files we will be using.
+We will use the [avatar-list](http://ionicframework.com/docs/v2/components/#avatar-list) to show this image. This image 
+will depend on the type and track of session.
+
+To achieve this we will create a method in our ProgramPage class that will return the url of the image depending on the session:
 ```typescript
-constructor(public navCtrl: NavController,
-            private navParams: NavParams) { }
+getImage(session: Session): string {
+  if (session.type) {
+    const imageName: string = this.getImageNameFromTrack(session.track);
+    return `assets/images/${imageName}.svg`
+  } else {
+    return 'assets/images/poison.svg';
+  }
+}
+
+private getImageNameFromTrack(track: string): string {
+  const result = track || 'other';
+  return result.toLowerCase()
+               .replace(' ', '-');
+}
 ```
-Remember to add the corresponding import (```import { NavController, NavParams } from 'ionic-angular';```) if your IDE doesn't do it for you.
-Now we can access the params of the navigation and use them to populate our title variable adding this to the constructor:
-```typescript
-this.title = (this.navParams.data as Moment).format('DD dddd');
+
+Now we add the **ion-avatar** element inside the _ion-item_ element to show the image:
+```html
+<ion-avatar item-left>
+  <img [src]="getImage(session)">
+</ion-avatar>
 ```
 
-_navParams.data_ is of type _any_ so we must cast it to _Moment_ to access its methods and format the date properly to be 
-shown in the title. We do this using the **as** reserved word. (Remember to add the needed momentjs imports as we did before).
- 
-Now we can check how the title is changing when we select a different date.
+Again we are using square brackets with the _src_ attribute because we are using a variable to define the content of the src. 
+This will prevent errors loading the image while getting the url.
+We also used the _item-left_ because we want our image to be shown to the left of the list.
 
-![program-title](./images/program-title.png)
+There are yet a couple of extra fields we can show in our list: the level and the type of session.
+We will use another Ionic built-in component, the **ion-note**. We want them to be placed in a new line so we will define 
+a div that wraps our two **ion-note** elements. We will use the _text-uppercase_ attribute and add a little bit of styling 
+to have each a note to the left and the other to the right.
+```html
+<div class="session-extra-info" text-uppercase>
+  <ion-note>{{session.type}}</ion-note>
+  <ion-note>{{session.level}}</ion-note>
+</div>
+```
 
-Jump to the next branch [Step 03 Populating the Program Page](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step03-Populating_the_Program_Page) to keep coding!
+We add the styling to the _program.scss_ file.
+```scss
+h2 {
+  margin-bottom: 2rem !important;
+}
+
+.session-extra-info {
+  ion-note:nth-child(2) {
+    float: right;
+  }
+}
+```
+
+This is what we have so far.
+
+![detailed_list](./images/detailed_list.png)
+
+The final touch, we can see that Ionic is asking as to provide an "approxItemHeight" input to ensure proper virtual scroll 
+rendering, so we will add this attribute to the _ion-list_ element with a value of 106px, the most common height of our item. 
+This will allow Ionic calculate the number of items it can display.
+
+Jump to the next branch [Step 04 Populating the Session Page](https://github.com/natete/DrupalDevDays-Ionic2-Workshop/tree/Step04-Populating_the_Session_Page) 
+to keep coding!

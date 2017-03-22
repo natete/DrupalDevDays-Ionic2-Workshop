@@ -1,0 +1,22 @@
+<ion-menu [content]="content">
+  <ion-header>
+    <ion-toolbar>
+      <ion-title>Seville DrupalDevDays</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content>
+    <ion-list>
+      <ion-list-header>Program</ion-list-header>
+
+      <button menuClose ion-item *ngFor="let date of dates" (click)="goToProgram(date)" icon-left>
+        <ion-icon name="calendar"></ion-icon>
+        <span text-uppercase>{{date.format('DD dddd')}}</span>
+      </button>
+    </ion-list>
+  </ion-content>
+
+</ion-menu>
+
+<!-- Disable swipe-to-go-back because it's poor UX to combine STGB with side menus -->
+<ion-nav #content swipeBackEnabled="false"></ion-nav>
