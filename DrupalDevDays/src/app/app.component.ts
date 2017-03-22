@@ -42,6 +42,6 @@ export class MyApp {
   private goToFirstDay() {
     const now = moment();
 
-    this.nav.setRoot(ProgramPage, this.dates.find(date => now.isSame(date)) || this.dates[0]);
+    this.goToProgram(this.dates.find(date => now.isSame(date, 'day')) || this.dates[0]);
   }
 }

@@ -8,5 +8,21 @@
 </ion-header>
 
 <ion-content>
+  <ion-list [virtualScroll]="sessions" [headerFn]="getStartTime" approxItemHeight="106px">
 
+    <ion-item-divider *virtualHeader="let startTime" color="light">{{startTime}}</ion-item-divider>
+
+    <ion-item *virtualItem="let session">
+      <ion-avatar item-left>
+        <img [src]="getImage(session)">
+      </ion-avatar>
+
+      <h2 [innerHtml]="session.title" text-wrap></h2>
+
+      <div class="session-extra-info" text-uppercase>
+        <ion-note>{{session.type}}</ion-note>
+        <ion-note>{{session.level}}</ion-note>
+      </div>
+    </ion-item>
+  </ion-list>
 </ion-content>
