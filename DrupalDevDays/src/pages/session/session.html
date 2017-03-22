@@ -3,21 +3,37 @@
     <button ion-button menuToggle>
       <ion-icon name="menu"></ion-icon>
     </button>
-    <ion-title>Page Two</ion-title>
+    <ion-title>{{title}}</ion-title>
   </ion-navbar>
 </ion-header>
 
-<ion-content>
+<ion-content padding>
+  <h1 [innerHtml]="session.title"></h1>
+  <h5 class="info-row">
+    <span>{{session.type}}</span>
+    <span>{{session.level}}</span>
+  </h5>
+  <h5 class="info-row">
+    <span>{{session.track}}</span>
+    <span>{{session.room}}</span>
+  </h5>
+
   <ion-list>
-    <button ion-item *ngFor="let item of items" (click)="itemTapped($event, item)">
-      <ion-icon [name]="item.icon" item-left></ion-icon>
-      {{item.title}}
-      <div class="item-note" item-right>
-        {{item.note}}
-      </div>
-    </button>
+    <ion-item *ngFor="let speaker of session.speakers | async">
+      <ion-avatar item-left>
+        <img [src]="speaker.avatar">
+      </ion-avatar>
+
+      <h2>{{speaker.name}}</h2>
+      <ion-note text-wrap>{{speaker.nickname || speaker.position}}</ion-note>
+      <p [innerHtml]="speaker.bio" text-wrap></p>
+      <ng-container *ngIf="speaker.company">
+        <h2>{{speaker.company.name}}</h2>
+        <img class="company-logo" [src]="speaker.company.logo">
+        <p [innerHtml]="speaker.company.bio" text-wrap></p>
+      </ng-container>
+    </ion-item>
   </ion-list>
-  <div *ngIf="selectedItem" padding>
-    You navigated here from <b>{{selectedItem.title}}</b>
-  </div>
+
+  <div class="session-description" [innerHtml]="session.description" text-wrap></div>
 </ion-content>
